@@ -1,0 +1,607 @@
+---
+title: "Introduction to Statistical Analyses in R"
+author: "Michelle Jonika"
+date: "9/28/2022"
+output: html_document
+---
+# Simulating a Normalized Dataset
+
+How we analyze our data will depend on the format of our data (numbers, factors, etc.), the design of our experiment, and whether or not our dataset is normally distributed.
+
+For simplicity, we are going to start by simulating a normalized dataset to use, then we will move on later in the workshop to using mock datasets that R has openly available.
+
+### Setting a seed in R
+* The way that R generates "random numbers" is with an algorithm that uses a seed to initialize. 
+* Therefore, setting a seed will allow you to initialize at this same location and reproduce the analyses and output. This is particularly important when performing simulation studies or when doing a workshop like this where we will all get the same data to work with.
+  
+### Simulating a normalized dataset in R
+* Random normal distribution in R: rnorm() 
+* n = how many random numbers we want to generate
+* mean = mean of the normalized random dataset
+* sd = standard deviation of the normalized random dataset
+    
+### Other types of datasets that we can simulate in R but won't cover in this workshop
+* Random uniform distribution: runif()
+* Random Poisson distribution: rpois()
+* As part of the stats package, possible to create many other distributions: binomial, F, log normal, beta, exponential, Gamma
+* Even more datasets are possible with additional packages
+
+```{r}
+#set the seed of the environment to 1
+set.seed(1)
+
+#simulate and store a dataset with a normalized distribution
+x <- rnorm(100, 
+           mean = 10, 
+           sd = 2)
+```
+
+Now let's visualize the dataset that we've created
+
+It's always important to get a feel for the data that you are working with prior to performing analyses, as it can help you to understand if the results that you are getting are logical. 
+
+```{r}
+#let's simply print out the dataset that we have created
+x
+
+#let's look at the mean, median, standard deviation, and range of our normalized dataset
+mean(x) #10.21777
+median(x) #10.22782
+sd(x) #1.796399
+range(x) #(5.57060, 14.80324)
+```
+
+Next, we can plot the data and see what it looks like visually. 
+
+Does this look like a normal distribution to you?
+```{r}
+#plot a basic histogram of the data 
+hist(x)
+
+#Using what we learned from the last workshop we can even improve this plot by changing the main plot label and axes labels
+hist(x,
+     xlab = "Data Set Values",
+     ylab = "Frequency",
+     main = "Histogram of Simulated Normalized Dataset")
+```
+
+# Testing for Normality
+
+What can we do if we don't know if our data is normalized? Test for normality.
+
+### Parametric statistical tests 
+* Parametric tests will make assumptions about the distribution of the data and their validity relies upon the assumptions of the data being correct.
+* Examples: Correlation, regression, t-test, and analysis of variance [ANOVA])
+* Normality and other assumptions that are associated with parametric tests are important to draw reliable interpretation and conclusions of the research.
+* Before using parametric tests, we should perform some tests to ensure assumptions are met. Otherwise, when assumptions are violated, a non-parametric test is recommended.
+* You should use your biological knowledge of your system to decide whether or not you expect your data to be normally distributed (or violate other assumptions). Often times your sample size will be too small to determine what the true distribution of your data is.
+
+### Shapiro-Wilk's Test for Normality
+* Visual inspection isn't the most reliable way to determine normality. 
+* Significance tests can allow us to compare our sample distribution to a normal distribution to determine whether our dataset deviates from normality
+* The R function Shapiro.test() can be used to perform a Shapiro-Wilk's test of normality for one variable (univariate)
+* Shapiro-Wilk's is a widely recommended test for normality based on the correlation between the data and the corresponding normal scores.
+
+```{r}
+#perform a Shapiro-Wilk test for normality
+shapiro.test(x) #p-value p = 0.9876
+
+#If the p-value is significant (p<0.05) the data is significantly different from a normal distribution
+#If the p-value is not significant (p>0.05) the data is not significantly different from a normal distribution
+```
+
+# Visualizing Two Distributions
+
+What if we want to compare two different distributions that are normal and numeric?
+
+```{r}
+#setting a different seed than the first dataset
+set.seed(5)
+#create a second normalized dataset
+y <- rnorm(n = 100,
+           mean = 11,
+           sd = 2)
+```
+
+We can again visualize different statistics from the second dataset. 
+
+```{r}
+#let's simply print out the dataset that we have created
+y
+
+#let's look at the mean, median, standard deviation, and range of our normalized dataset
+mean(y) #11.06327
+median(y) #10.81203
+sd(y) #1.890569
+range(y) #(6.632066, 15.774465)
+```
+
+We can also visualize the two datasets together to see how they deviate from each other.
+
+```{r}
+#plot a histogram of the first set of data
+hist(x = x, 
+     col = "blue", 
+     breaks = 20)
+
+#plot a histogram of the second set of data
+hist(x = y,
+     col = "red",
+     breaks = 20,
+     add = T)
+
+#these two lines of code have to be run together to see the plots on top of each other
+```
+
+# Independent Samples (T-Test and Wilcoxon-Mann-Whitney)
+
+### T-Test (Parametric)
+* T tests help you to determine whether the means of two groups are equal to each other
+* Assumptions of this test are that both groups are sampled from normal distributions with equal variances
+* Null hypothesis: The means of the data sets are equal
+* Alternative hypothesis: The means of the data sets are not equal
+
+```{r}
+#perform a t test of the two datasets
+
+#x = numeric vector of dataset 1
+#y = numeric vector of dataset 2
+
+t.test(x = x,
+       y = y)
+
+```
+
+We see the above output which shows the p-value: 0.001393. This p-value is significant indicating that the means of the data sets are not equal. This is expected with the numbers we used to create each dataset, where the mean of the first data set is specified as 10 and the mean of the second data set is specified as 11.
+
+
+### Wilcoxon-Mann-Whitney Test (Non-Parametric)
+* A non-parametric alternative to the unpaired two-samples t-test
+* This test can be used to compare two independent groups of samples that are not normally distributed.
+* Null hypothesis: The means of the data sets are equal
+* Alternative hypothesis: The means of the data sets are not equal
+
+
+```{r}
+#perform a wilcox test of the two datasets
+
+#x = numeric vector of dataset 1
+#y = numeric vector of dataset 2
+
+wilcox.test(x = x,
+            y = y)
+
+```
+
+We still see a significant p-value (p = 0.00372), but this p-value is not as low as the previous p-value from the parametric t-test.
+
+# Dependent Samples (T-Test and Wilcoxon-Mann-Whitney)
+
+### Paired T-Test (Parametric)
+* The paired samples t-test compares the means between two related groups of samples or pairs of observations
+* Paired t-test can only be used when the difference is normally distributed 
+* Null hypothesis: The true mean difference between the paired samples is 0
+* Alternative hypothesis: The true mean difference between the paired samples is not equal to 0
+
+```{r}
+#perform a paired t test of the two datasets
+
+#x = numeric vector of dataset 1
+#y = numeric vector of dataset 2
+#paired = true is the data is paired data
+
+t.test(x = x,
+       y = y, 
+       paired = TRUE)
+
+```
+
+We see the above output which shows the p-value: 0.00146. This p-value is different than we see above from the independent t-test. What else is different? Our degrees of freedom have also changed. We previously had 200 observations, but now we have 2 measurements of 100 observations reducing the degrees of freedom.
+
+### Paired Wilcoxon-Mann-Whitney Test (Non-Parametric)
+* The non-parametric alternative to the paired t-test is the paired Wilcoxon-Mann-Whitney test
+* 
+```{r}
+#perform a paired wilcox test of the two datasets
+
+#x = numeric vector of dataset 1
+#y = numeric vector of dataset 2
+#paired = true is the data is paired data
+
+wilcox.test(x = x,
+            y = y,
+            paired = TRUE)
+
+```
+
+We see the above output which shows the p-value: 0.001704. Similar to the t-test, this p-value from the paired Wilcoxon-Mann-Whitney is different than we see above from the independent Wilcoxon-Mann-Whitney. 
+
+# Simulating Character/Group Data
+
+So far we have been working with only numerical data, but in your research you may also have character or group data.
+
+```{r}
+#letters funtion allows you to print out characters in the alphabet
+rep(letters[1:2])
+
+#we can create a group vector that will allow us to add group labels to our dataset
+#length.out specifies how many total observations you want in the vector
+group <- rep(letters[1:2], length.out = 200)
+
+#we're going to set our seed again, this time with a different seed
+set.seed(6)
+
+#create a normalized data set with values at two different means
+response <- rnorm(n = 100, mean = c(10,11), sd = 2)
+
+#place the normalized data and the group labels all together into a data frame
+test <- data.frame(group, response)
+
+#we can take a look at the top of this data frame without looking at the dentire data frame
+#this is especially useful when you have really large datasets that you are loading in
+head(test)
+
+#we can use a function to look at the structure of our data frame
+#this can help you to see the types of data that you are working with
+
+#For example, when we look at our data frame that we have just created, we can see the number of observations and variables that are in our dataset. We can also see that we have a column of character data that is labelled as group and a column of numeric data that is labelled as response.
+
+str(test)
+
+```
+
+# T-Test and Wilcoxon-Mann-Whitney with Groups
+
+### T-Test by Group
+* We can also perform a basic t-test by group
+* We use the formula, X~Y, or the response or dependent variable (X) as a function of ("~") the independent variable (Y)
+
+```{r}
+t.test(response~group,
+       data = test)
+```
+
+### Visualizing the Grouped Data with a Boxplot 
+
+We can make a boxplot using a similar format to the grouped t-test above, and adding in labels for the X and Y axis
+```{r}
+boxplot(response~group, 
+        data = test,
+        xlab = "Groups",
+        ylab = "Observations")
+```
+
+### Wilcoxon-Mann-Whitney by Group
+* We can also perform a basic Wilcoxon-Mann-Whitney by group
+* We use the formula as we did for grouped t-test above
+```{r}
+wilcox.test(response~group,
+            data = test)
+```
+
+
+# ANOVA (Analysis of Variance)
+
+Now, let's think about if we had more than 2 groups. 
+
+### Simulating Data for ANOVA
+We are again going to simulate groups and responses, but with three groups this time.
+
+```{r}
+#create a vector of the group data for the ANOVA
+group.aov <- as.factor(rep(letters[1:3], length.out = 300))
+
+#create a vector of response data for the ANOVA
+response.aov <- rnorm(n = 300,
+                      mean = c(10,25,30),
+                      sd = 2)
+```
+
+Let's again, visualize the data we have created. 
+
+```{r}
+hist(response.aov)
+```
+
+We can't really see much when we visualize the data without breaking it up more. 
+
+```{r}
+hist(response.aov,
+     breaks = 20)
+```
+
+What did this do? Now we can see a lot more bins along the x-axis. The breaks function allows us to control the number of bars or bins of the histogram.
+
+We are going to place the data we have created into a data frame. 
+
+```{r}
+test.aov <- data.frame(group.aov, response.aov)
+```
+
+Now, let's look at the type of data that we are working with by using the structure function.
+
+```{r}
+str(test.aov)
+```
+ 
+ You could also similarly head the data frame to see the first few rows. 
+
+```{r}
+head(test.aov)
+```
+
+### ANOVA
+
+Let's set up the ANOVA test. 
+
+We again are going to use that same formula format, dependent ~ independent.
+
+```{r}
+test.aov.fit <- aov(response.aov ~ group.aov, 
+                    data = test.aov)
+```
+
+Let's again, visualize the data we have created. 
+
+```{r}
+plot(test.aov.fit)
+```
+
+While these plots are really great, we noticeably don't see a p-value or other information associated with the ANOVA.
+```{r}
+test.aov.fit
+```
+
+Let's use summary to get a summary of the statistical test we ran.
+```{r}
+summary(test.aov.fit)
+```
+We see that it's really significant, but this shouldn't be surprising given the values that we told the test to use.
+
+### Tukey Post Hoc Test
+
+An ANOVA can tell you if there is significance in your results overall, but it can't tell you where exactly those differences lie. After running an ANOVA and finding significance, you can run a Tukey test to compare all possible pairs of means and find out which specific group's means are different. 
+
+```{r}
+TukeyHSD(test.aov.fit)
+```
+
+This output will show us all of the comparisons between the pairs of means and we can see that all of them are different from one another
+
+###ANOVA and Post Hoc (only some significant differences)
+
+This time we are going to simulate groups and responses again, but with three groups where two are very similar, but with different standard deviations.
+
+Let's first create this data and then look at it with a histogram.
+
+```{r}
+group.aov2<-rep(letters[1:3], length.out=300)
+response.aov2<-rnorm(n=300, mean=c(10, 10.5, 30), sd=c(2,6,1.5))
+hist(response.aov2, breaks=20)
+```
+
+Let's place our group and response data into a data frame to run the ANOVA.
+```{r}
+test.aov2<-data.frame(group.aov2, response.aov2)
+```
+
+ANOVA time. 
+```{r}
+test.aov.fit2<-aov(response.aov2~group.aov2, data=test.aov2)
+summary(test.aov.fit2)
+```
+
+This result is still very significant, but what do we see if we run the Tukey test?
+
+```{r}
+TukeyHSD(test.aov.fit2)
+```
+We can see from the above Tukey output that we do not find a significant difference between groups A and B. However, this isn't surprising given the means that we simulated for these two groups.
+
+### Non parametric Alternative to ANOVA
+Is there a non parametric alternative to an ANOVA?
+
+```{r}
+nonpara.aov<-kruskal.test(response.aov2~group.aov2, data=test.aov2)
+nonpara.aov
+```
+
+There are additional options for post-hoc tests for the Kruskal Wallis Test, but those are beyond the scope of this workshop and we will not explore those right now. 
+
+### Multiple Response Variables Using Available Data sets in R
+So far we have been working with pretty simple simulated datasets. 
+
+What is we are interested in more than one repose variable (dependent variable)... 
+
+We are going to use the iris flower dataset in R.
+
+```{r}
+data("iris")
+```
+
+Let's be sure to look at the data that we are going to be using to see the format.
+
+```{r}
+str(iris)
+```
+
+### MANOVA with Iris Dataset
+
+We can see that in our iris dataset there are a few different numerical traits (sepal length, sepal width, petal length, petal width) and also species. We can ask ourselves if these dependent traits are impacted by one independent trait. For example, is sepal length and petal length significantly different between species? 
+
+To answer this question, we can use a MANOVA.
+
+In order to do this, we need to bind together our two dependent variables of interest (sepal length and petal length)
+```{r}
+results.manova<-manova(cbind(iris$Sepal.Length, iris$Petal.Length)~iris$Species)
+summary(results.manova)
+```
+
+We can also look at each individual result separately.
+
+```{r}
+summary.aov(results.manova)
+```
+
+From these results, we can see that both traits are significantly different by species. 
+
+### Correlation Data
+So far we have covered basic response by group, but what about continuous variables and correlation data? 
+
+We are again going to call in another dataset that is already preloaded into R.
+
+```{r}
+data("mtcars")
+```
+
+Let's be sure to look at the data that we are going to be using to see the format.
+
+```{r}
+str(mtcars)
+```
+
+
+### Setting up linear models
+There is a lot of data to look at in this dataset, but let's keep it simple. 
+
+What is directly impacting the fuel efficiency (mpg) of these cars? 
+
+We are going to set up a linear model and use the same formula that we were using before (dependent~independent). 
+
+Let's start with a single variable, weight.
+
+```{r}
+carfit<-lm(mpg~wt, data=mtcars)
+```
+
+If you want, you can check a plot of the residuals.
+
+```{r}
+plot(carfit)
+```
+
+What does the output of the linear model look like?
+
+```{r}
+summary(carfit)
+```
+
+When we look at the model data we can see a highly significant result, with a strong r2 value (% of variation in mpg explained by weight)
+
+What does the data look like when we plot it?
+
+```{r}
+plot(mpg~wt, data=mtcars)
+```
+
+Now, let's see how our model looks if we add i another variable in addition to the weight.
+
+Let's also add in cylinders.
+
+```{r}
+carfit2<-lm(mpg~wt+cyl, data=mtcars)
+```
+
+We see that the results is significant and has a higher r2 value. Does this matter?
+
+```{r}
+summary(carfit2)
+```
+
+How can we determine which model is better?
+
+```{r}
+anova(carfit, carfit2)
+```
+
+This output shows that there is a significantly better fit with the more complex model (p = 0.001064)
+
+### Interaction Data
+
+What if there is an interaction effect, like how many cylinders it has? If the car is heavier because of the engine and not something else, maybe there is an effect?
+
+```{r}
+carfit3<-lm(mpg~wt+cyl+wt*cyl, data=mtcars)
+summary(carfit3)
+```
+
+We see that wight is significant in the model, as is cylinder, BUT we also see a significant interaction between cylinder and weight.
+
+What is going on here? We know that as weight goes up, the mpg goes down.
+
+```{r}
+plot(mpg~wt, data=mtcars)
+```
+
+And we also know that as the cylinders go up, the mpg goes down too
+
+```{r}
+plot(mpg~cyl, data=mtcars)
+```
+
+What happens to the weight as cylinders go up?
+
+```{r}
+plot(wt~cyl, data=mtcars)
+```
+
+### Marginal Frequency Tables
+What do we do if we have categorical data? Data from a survey or phenotypes from genetic crosses? What if we wanted to know if there is a more common combination of hair and eye color?
+
+Let's again use an available dataset in R
+
+```{r}
+data("HairEyeColor")
+```
+
+And look at the data that we are working with.
+
+```{r}
+str(HairEyeColor)
+```
+
+```{r}
+HairEyeColor
+```
+
+As you can see from above, the data is in a bit of an odd format as it is separated by sex. However, for our question we are not interested in sex as a factor, so we can use the function margin.table to give us all of our output for a marginal frequency table
+
+```{r}
+HairEyeNew<-margin.table(HairEyeColor, margin=c(1,2))
+```
+
+Let's see what this new table looks like.
+
+```{r}
+HairEyeNew
+```
+
+We can see that all of the data that we need to answer our question is in a usable table now. However, we are not interested in the raw numbers.
+
+### Chi Square Test
+
+What kind of test do we use to see if something is occurring more or less frequently than expected? Chi square is a common statistical test used to determine whether there is a statistically significant different between expected and observed frequencies. 
+
+We can use a Chi Square test to answer our question with the marginal frequency table that we created from above.
+
+```{r}
+chisq.test(HairEyeNew)
+```
+
+From this output, we can see that something is significant, but we want to see what frequencies we have. In order to calculate frequency, we also need to divide what we have by the totals.
+
+```{r}
+HairEyeNew/sum(HairEyeNew)
+```
+
+
+
+
+
+
+
+
+
+
+
+

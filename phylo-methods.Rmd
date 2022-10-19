@@ -1,0 +1,345 @@
+---
+title: "Phylogenetics and Comparative Methods"
+author: "Michelle Jonika"
+date: '2022-10-16'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Phylogenetics
+
+Due to time constraints this lesson will focus primarily on using phylogenies to do comparative methods. If you are interested in learning to build phylogenies there are a number of great workshops, classes, and online tutorials:
+
+* BEAST (Bayesian Evolutionary Analysis Sampling Trees): https://beast.community
+* Bayesian Divergence-Time Estimation using BEAST: http://treethinkers.org/tutorials/divergence-time-estimation-using-beast/
+* Taming the BEAST: https://taming-the-beast.org/tutorials/
+* RevBayes: https://revbayes.github.io/tutorials/
+* Estimating a Time-Calibrated Phylogeny of Fossil and Extant Taxa Using Morphological Data: https://revbayes.github.io/tutorials/fbd_simple/
+* RAxML: https://raxml-ng.vital-it.ch/#/
+
+Additionally, here are some highly recommended books that are helpful when working with phylogenies and phylogenetic comparative methods:
+
+* Analysis of Phylogenetics and Evolution in R (Paradis)
+* Phylogenetic Comparative Methods in R (Revell and Harmon)
+* Tree Thinking (Baum and Smith)
+* The Phylogenetic Handbook
+* Phylogenetic Comparative Methods: Learning from trees (Harmon)
+* Inferring Phylogenies (Felsenstein)
+
+## Packages
+* APE (Analysis of Phylogenetics and Evolution in R)
+* Phytools
+* Geiger
+* There are many more packages that you may find useful or want to use in your research, but there is no possible way to cover them all in this workshop. Here is a helpful list of phylogenetic and phylogenetic comparative method packages: https://cran.microsoft.com/snapshot/2019-02-07/web/views/Phylogenetics.html
+
+## Trees in R
+
+The first thing we will go over is how we get trees in and out of R and the way that they are stored while being used in R. Most of this is based on the R package APE which was one of the first R packages focused on dealing with phylogenies.
+
+### The phylo object in R
+
+Phylogenetic trees in R are stored in a class called `phylo`. Lets simulate a small tree and explore this class of object.
+
+```{r}
+library(ape)
+# first lets just simulate a simple tree
+set.seed(1)
+tree <- rcoal(5)
+plot(tree)
+
+```
+
+This phylogeny is stored as a list in R. The elements of this list include
+
+ * edge: this is a matrix where each row is a branch of the phylogeny. In the first column will be the node number of the node towards the root of the tree and in the right column will be the node number towards the tips of the tree.
+ * edge.length: this is a vector where each element is the length of the branches described in the edge matrix
+ * tip.label vector: this is a character vector where each element is the name for a tip in the phylogeny
+ * Nnode: this vector will be a length of one and is the number of internal nodes in the tree.
+
+Lets look at the edge matrix, edge.length vector and the tree at the same time to see the concordance between these.
+ 
+```{r}
+tree$edge 
+tree$edge.length
+plot(tree)
+nodelabels()
+tiplabels()
+```
+
+
+Ok, now that we understand a little bit about how a tree is stored in R lets work on reading and writing trees. One thing that you need to be aware of is that you will likely encounter two types of tree file formats. The simplest is what is called a Newick format. A slightly more complex file format is nexus these are especially common when you either have a large collection of trees or a great deal of extra information (summary statistics for nodes in the tree). These can both be read into R but we need to use different functions. For newick formatted trees we will use the function `read.tree` and for nexus formatted trees we will use the function `read.nexus`. If we want to write trees we will use the functions `write.tree` and `write.nexus`.
+
+```{r}
+write.tree(tree, "jonika.tree")
+tree2 <- read.tree("jonika.tree")
+```
+
+### Data munging with phylogenies
+
+Rarely will you be able to just immediately do what you want with a new phylogeny. Lets look at some of the most common tasks that you have to do before using a phylogeny. To do this lets use a dataset that is built into the R package Geiger.
+
+```{r}
+library(geiger)
+data("geospiza")
+# This returned a list to us we will take the tree which is the first element and the data that matches it which is the second element
+tree <- geospiza[[1]]
+dat <- geospiza[[2]]
+```
+
+One of the most common problems that we face in comparative methods is a mismatch between our tree and our data. Fortunately there are some easy function that you can use to deal with this.
+
+```{r}
+newlist <- treedata(tree, dat)
+length(tree$tip.label)
+length(newlist$phy$tip.label)
+nrow(dat)
+nrow(newlist$data)
+```
+
+Sometimes you may need to go in and remove a tip from you phylogeny manually.
+
+```{r}
+small.tree <- drop.tip(tree, "olivacea")
+```
+
+Although the current tree we are using is ultrametric (the distance from the root to the tip is identical for all species) often times you will get trees where this is not the case. Sometimes this is because the tree is not time calibrated other times it is because it includes fossils. But often times even when the tree looks ultrametric you will get an error from R saying it is not. This can be do to very small rounding differences on branches leading to minuscule differences among tips. We can fix this using a function from Phytools
+
+```{r}
+library(phytools)
+new.tree <- force.ultrametric(tree)
+```
+
+This function should only be used for trees that are ultrametric but simply not with enough precision. If you have a tree where the branch lengths are say in units of substitutions you might look at the `chronos` function in APE as one way to convert to an ultrametric tree.
+
+Some functions that you may want to use in R will require that your tree and data be in the same order. Lets look at how we can write a simple loop to do this.
+
+```{r}
+# lets use the Geospiza data that we already ran through treedata
+tree <- newlist$phy
+dat <- newlist$data
+neworder <- c()
+for(i in 1:length(tree$tip.label)){
+  neworder[i] <- which(tree$tip.label[i] == rownames(dat))
+}
+dat2 <- dat[neworder,]
+
+#here we can  see the old data is not in the same order when you compare 
+#between the data and tree
+rownames(dat)
+tree$tip.label
+
+#here we can  see the new data is in the same order when you compare 
+#between the data and tree
+rownames(dat2)
+tree$tip.label
+```
+
+### Basic Tree Plotting
+
+```{r}
+par(mfcol=c(2,2))
+plot(tree, type="p", edge.color = c(rep("black",14), "red",rep("black",9)))
+plot(tree, type="c", show.tip.label = F)
+plot(tree, type="f", cex=0.5, edge.color = "blue")
+plot(tree, type="u", edge.width=2, cex=.2)
+```
+
+There are many additional arguments that you can use to fine tune the way your tree plots in R. However, I'll be honest with you, there may be things that you want to do that are difficult/impossible in R. Often time the figures that you will see in manuscripts and talks will be a combination of a phylogeny and some aspects plotted in R and then additions that are done in PowerPoint, Adobe, or other illustration software.
+
+### Cooler Plots
+
+Lets look at how we can combine plots of data and trees or even inferences from our data and trees.
+
+# Bar Plot
+Let's plot the wing length across the phylogeny 
+```{r}
+plotTree.barplot(tree, dat2[,1])
+
+#You'll notice that this plot doesn't quite extend as far as we would like on the x-axis, but we can fix that with just a little bit more code
+plotTree.barplot(tree, dat2[,1], 
+                 args.barplot = list(xlim = c(0, 5), 
+                                     xlab = "Wing Length"))
+
+```
+#As mentioned above many times phylogeneticists will manually fix things about figures they don't like in powerpoint or other editing software. For example, in the above figure, if I was doing any paired plot with the phylogeny that was more complex than a barplot (or some of the other functions available, I made need to make the phylogeny and the plot separately and then bring them together in PPT manually.  
+
+
+# Stochastic Map
+
+To plot a stochastic map we will first need a discrete trait and our traits are all continuous.
+
+```{r}
+
+#this loop will take the mean of wing length in our data frame and assign a binary state to the wing length value in each row 
+#dependent on whether the value is above or below the median wing length value
+
+#this allows us to discretize our contiuous trait
+for(i in length(dat2)){
+  x <- median(dat2[,1])
+  dat2[,1] <- as.numeric(dat2[,1] >= x)
+}
+
+#let's take a look at what our wing length data looks like after discretizing
+dat2
+#0 = small wing length; 1 = large wing length
+
+
+#Now we will be using the function `make.simmap` to simulate a stochastic character map on a phylogeneitc tree
+
+#make.simmap requires that our tip states or discrete trait that we are wishing to simulate is in a vector, so let's get that in the proper format
+wing.length <- dat2[,1]
+stoch.map <- make.simmap(tree, wing.length, model = "ER", nsim = 10)
+
+#ER speicifies an equal rates model, this is one type of model that is used in discrete traits. The help documentation for `make.simmap` specifies that you can see the function `ace` to know what models are available to choose. If you scroll down to the "Details" section in the `ace` documentation it describes many different continuous and discrete trait models. 
+
+
+#let's see what this stochastic mapping actually does by plotting our results
+plot(stoch.map)
+
+#you'll see when you look at the results from this analysis on the plots, you can see your biary trait recapitulated across the phylogenetic tree. Additionally, you can see that each of the 10 simulations we did are slightly different. 
+```
+# contmap (phytools)
+
+The ContMap function plots a tree with a mapped continuous character. 
+```{r}
+contMap(tree, dat[,1])
+```
+
+## Fitting Evolutionary Models to Trait Data
+Knowing if there is phylogenetic signal in traits is nice, but it is just knowing, right? Perhaps, a more informative way of assessing the phylogenetic non-independence in species traits is to properly test how traits fit to different models of trait evolution.
+
+#fitcontinuous (Geiger)
+The `fitContinuous` function fits various likelihood models for continuous character evolution to help you compare the relative fit of your data to different evolutionary models.
+```{r}
+#for our workshop we are going to look at these three models, butg there are others that this function supports if those best describe your model
+EvoModelsC <- c("BM", "OU", "EB")
+#runnig the fitContinuous function
+fitC <- lapply(EvoModelsC, FUN = function(x) fitContinuous(tree, dat[,1], model = x))
+
+#you could pair this analysis with the contmap figure that we created above to help you visualize your continuous trait across your phylogenetic tree
+
+#fitC is going to be a list of 3 where each list represents each othe three continuous models that you are fitting to your trait
+
+#checking the brownian motion fit
+fitC[[1]]
+head(fitC[[1]]$res)
+#checking the ornstein-uhlenbeck fit
+fitC[[2]]
+head(fitC[[2]]$res)
+#checking the early burst fit
+fitC[[3]]
+head(fitC[[3]]$res)
+
+#We can compare these models most easily using AIC (or the small-sample corrected AICc). AIC is an 'information criterion' that weights the fit of the model against the number of parameters in the model to help us measure the strength of evidence for each model. Lower AIC values indicate better evidence for a given model. We can also compute the AIC-weights - which essentially standardizes the AIC scores of fitted alternative models to measure the relative weight of evidence for each model in our data.
+
+#grabs the aicc value for each model that we have run
+AICs <- sapply(fitC, FUN = function(x) x$opt$aicc)
+
+#pulls each of the three model names that we have stored in a vector above and names each element according to its model name
+names(AICs) <- EvoModelsC
+
+#let's compare our models based on their Akaike Weights and rank models based on their support from AIC scores
+AICtable <- aicw(AICs)
+
+#let's look at the table
+AICtable
+#how to interpret the table
+#fit: The information score of the model. The smaller the AIC value, the better the model fit.
+#delta: The difference in AIC score between the best model and the model being compared. In this table, the next-best model has a delta-AIC of 6.33 compared with the top model, and the third-best model has a delta-AIC of 17.57 compared with the top model
+#akaike weight 
+
+#This function is also really nice because it will rank your model in descending order according to Akaike weight. 
+
+#the greatest strength of evidence for a continuous model of trait evolution is for the simplest model - Brownian Motion
+
+```
+
+#fitdiscrete (Geiger)
+The `fitDiscrete` function fits various likelihood models for discrete character evolution to help you compare the relative fit of your data to different evolutionary models.
+```{r}
+#for our workshop we are going to look at these three models, butg there are others that this function supports if those best describe your model
+EvoModelsD <- c("ER", "SYM", "ARD")
+
+#running the fitDiscrete function
+#fitD <- lapply(EvoModelsD, FUN = function(x) fitDiscrete(tree, wing.length, model = x))
+
+#YOU ARE GOING TO RUN THIS AND IT WILL NOT WORK.
+#Error in .check.states(tree, states, strict.vals = 1:k) : Unknown states 0 not allowed in states vector
+#This is because when we discretized our trait, we discretized by 0/1 and this function cannot allow 0 as a state with the way it is written
+#No worries, let's discretize it by 1/2 instead
+
+#let's find which values in our vector of discrete values are 0
+hit <- which(wing.length == "0") 
+#let's transform those values that are 0 into a 2 instead
+wing.length[hit] <- 2
+#1 = large wing length; 2 = small wing length
+
+#let's rerun the fitDiscrete function with our 1/2 characterized data
+fitD <- lapply(EvoModelsD, FUN = function(x) fitDiscrete(tree, wing.length, model = x))
+
+#you could pair this analysis with the stochastic map figure that we created above to help you visualize your discrete trait across your phylogenetic tree
+
+#fitD is going to be a list of 3 where each list represents each othe three continuous models that you are fitting to your trait
+
+#checking the equal rates fit
+fitC[[1]]
+head(fitC[[1]]$res)
+#checking the symmetric fit
+fitC[[2]]
+head(fitC[[2]]$res)
+#checking the all-rates-different fit
+fitC[[3]]
+head(fitC[[3]]$res)
+
+#We can compare these models most easily using AIC (or the small-sample corrected AICc). AIC is an 'information criterion' that weights the fit of the model against the number of parameters in the model to help us measure the strength of evidence for each model. Lower AIC values indicate better evidence for a given model. We can also compute the AIC-weights - which essentially standardizes the AIC scores of fitted alternative models to measure the relative weight of evidence for each model in our data.
+
+#grabs the aicc value for each model that we have run
+AICs <- sapply(fitD, FUN = function(x) x$opt$aicc)
+
+#pulls each of the three model names that we have stored in a vector above and names each element according to its model name
+names(AICs) <- EvoModelsD
+
+#let's compare our models based on their Akaike Weights and rank models based on their support from AIC scores
+AICtable <- aicw(AICs)
+
+#let's look at the table
+AICtable
+#how to interpret the table
+#fit: The information score of the model. The smaller the AIC value, the better the model fit.
+#delta: The difference in AIC score between the best model and the model being compared. In this table, the next-best model has a delta-AIC of 6.33 compared with the top model, and the third-best model has a delta-AIC of 17.57 compared with the top model
+#akaike weight 
+
+#This function is also really nice because it will rank your model in descending order according to Akaike weight. 
+
+#the greatest strength of evidence for a continuous model of trait evolution is shared with ER and SYM models of evolution 
+```
+
+#Phylogenetic Independent Contrast (PIC) in APE
+
+Data for species cannot be treated as independent data points from the point of view of statistical analysis. The logic of PIC is to use phylogenetic information to transform the original tip data into values that are statistically independent and identically distributed.
+```{r}
+#we are going to use wing length as our trait of interest
+#pic requires a numeric vector
+wingL <- dat[,1]
+#this will name our wing length vector based on the species it corresponds to
+names(wingL) <- row.names(dat)
+
+#PIC of wing length on our phylogeny
+ContrastwingL <- pic(wingL, tree)
+ContrastwingL
+
+#PIC of wing length on our phylogeny with variance
+ContrastwingL.var <- pic(wingL, tree, var.contrasts = T)
+ContrastwingL.var
+
+#let's visualize the independent contrasts at each of the nodes within our tree
+plot(tree)
+nodelabels(round(ContrastwingL.var[,1], 3), adj = c(0, -0.5), frame="n")
+
+#you could also additionally use output from this type of analysis to run a analysis of correlated trait evolution between two traits across your phylogeny using a linear model
+```
+
+I hope this has been a helpful introduction into phylogenetics and phylogenetic comparative methods!
